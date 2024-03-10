@@ -1,4 +1,4 @@
-# kubernetes-sandbox
+# k8s-sandbox
 A command line interface to launch a kubernetes sandbox on your preferred cloud provider
 
 ## Instructions  
