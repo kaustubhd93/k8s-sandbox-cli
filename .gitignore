@@ -35,3 +35,4 @@ terraform.rc
 
 # Ignore tfvars
 *.tfvars
+*.tfvars.json
