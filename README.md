@@ -14,3 +14,5 @@ A command line interface to launch a kubernetes sandbox on your preferred cloud 
 - Follow the prompts to open a new VS Code window that will connect to your instance and provide your very own K8s Sandbox.  
 - Run `minikube start` to start Minikube and get your Kubernetes cluster up and running.  
 - `terraform destroy` to destroy your infrastructure when you're finished.  
+
+> Initially forked from [morethancertified/kubernetes-sandbox](https://github.com/morethancertified/kubernetes-sandbox)

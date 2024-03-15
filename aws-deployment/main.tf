@@ -14,7 +14,7 @@ resource "aws_vpc" "mtc_vpc" {
   enable_dns_support   = true
 
   tags = {
-    Name = "dev"
+    Name = "k8s-sandbox-vpc"
   }
 }
 
@@ -25,7 +25,7 @@ resource "aws_subnet" "mtc_public_subnet" {
   availability_zone       = local.availability_zone
 
   tags = {
-    Name = "dev-public"
+    Name = "k8s-sandbox-public"
   }
 }
 
@@ -33,7 +33,7 @@ resource "aws_internet_gateway" "mtc_internet_gateway" {
   vpc_id = aws_vpc.mtc_vpc.id
 
   tags = {
-    Name = "mtc_igw"
+    Name = "k8s-sandbox-igw"
   }
 }
 
@@ -41,7 +41,7 @@ resource "aws_route_table" "mtc_public_rt" {
   vpc_id = aws_vpc.mtc_vpc.id
 
   tags = {
-    Name = "dev_public_rt"
+    Name = "k8s-sandbox-public-rt"
   }
 }
 
@@ -57,8 +57,8 @@ resource "aws_route_table_association" "mtc_public_assoc" {
 }
 
 resource "aws_security_group" "mtc_sg" {
-  name        = "public_sg"
-  description = "public security group"
+  name        = "k8s-sandbox-sg"
+  description = "k8s-sandbox security group"
   vpc_id      = aws_vpc.mtc_vpc.id
   ingress {
     from_port   = 22
@@ -93,7 +93,7 @@ resource "aws_instance" "dev_node" {
   }
 
   tags = {
-    Name = "dev-node"
+    Name = "k8s-sandbox"
   }
 
   provisioner "local-exec" {
