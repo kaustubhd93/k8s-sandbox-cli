@@ -1,10 +1,12 @@
 import os
+import sys
 import shlex
 import subprocess
 import json
 import argparse
 
 ssh_key_name = "k8s-sandbox"
+supported_clouds = ["aws"]
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--action", type=str, choices=["create", "destroy"], help="The action to perform: create or destroy")
@@ -21,6 +23,7 @@ def run_in_bash(cmd):
     if process.returncode != 0:
         print(f"Command: {cmd} failed with error code {process.returncode}")
         print(f"Error: {process.stderr.read()}")
+        sys.exit(process.returncode)
     return None
 
 def create_tf_vars_aws():
@@ -46,6 +49,9 @@ def create_tf_vars_aws():
     return None
 
 if __name__ == "__main__":
+    if args.cloud not in supported_clouds:
+        print("Unsupported cloud provider. Exiting...")
+        sys.exit(1)
     if args.action == "create":
         print("Creating SSH key pair...")
         run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
@@ -63,6 +69,7 @@ if __name__ == "__main__":
             print("Destroying AWS resources...")
             os.chdir(f"../{args.cloud}-deployment")
             run_in_bash("terraform destroy -auto-approve")
+            run_in_bash(f"rm -f {ssh_key_name}*")
     else:
         print("Invalid action. Nothing to do.")
 
