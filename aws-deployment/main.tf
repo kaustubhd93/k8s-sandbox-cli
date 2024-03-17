@@ -90,6 +90,7 @@ resource "aws_instance" "dev_node" {
 
   root_block_device {
     volume_size = var.instance_storage
+    volume_type = "gp3"
   }
 
   tags = {
