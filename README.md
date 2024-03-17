@@ -1,18 +1,26 @@
 # k8s-sandbox-cli
 A command line interface to launch a kubernetes sandbox on your preferred cloud provider
 
-## Instructions  
-- Clone the code to your terminal running VS Code.  
-- Create an ssh key: `ssh-keygen -t rsa`  
-- Install the Remote-SSH extension in VS Code: https://code-visualstudio-com/docs/remote/ssh  
-- Modify the `terraform-tfvars` file with your values, including `host_os` which will be `windows` or `linux` (for MacOS or Linux)- Minikube will run best with a t3a-medium or higher EC2 instance with at least 20Gib of storage- **This will cost money!**  
-- *Optional*: Modify the `userdata-tpl` script to provide any custom userdata to your instance.  
-- `terraform init`  
-- `terraform plan`  
-- `terraform apply`  
-- Use `CTRL+P` in VS Code, search for the `Remote-SSH` extension, and then choose the IP address output from the Terraform script.  
-- Follow the prompts to open a new VS Code window that will connect to your instance and provide your very own K8s Sandbox.  
-- Run `minikube start` to start Minikube and get your Kubernetes cluster up and running.  
-- `terraform destroy` to destroy your infrastructure when you're finished.  
+## Supported Cloud providers
+- AWS
 
-> Initially forked from [morethancertified/kubernetes-sandbox](https://github.com/morethancertified/kubernetes-sandbox)
+## Pre-requisites
+- python3
+- terraform
+- A credentials profile with name sandbox in ~/.aws/credentials which will look like below:
+```
+[sandbox]
+region = <region>
+aws_access_key_id = <access_key_id>
+aws_secret_access_key = <secret_access_key>
+```
+
+## Instructions  
+- Clone the code on your system
+- `cd src`
+- `python3 k8s-sandbox-cli.py --action create --cloud aws --vpc-cidr <cidr> --region <region>`
+- `ssh -i ../aws-deployment/k8s-sandbox <public_ip_displayed_in_output>`
+- Run `minikube start` to start Minikube and your Kubernetes cluster should be up and running.  
+- When you are done working: `python3 k8s-sandbox-cli.py --action destroy --cloud aws`
+
+### Initially forked from [morethancertified/kubernetes-sandbox](https://github.com/morethancertified/kubernetes-sandbox)
