@@ -69,7 +69,8 @@ if __name__ == "__main__":
             print("Destroying AWS resources...")
             os.chdir(f"../{args.cloud}-deployment")
             run_in_bash("terraform destroy -auto-approve")
-            run_in_bash(f"rm -f {ssh_key_name}*")
+            os.remove(f"{ssh_key_name}.pub")
+            os.remove(f"{ssh_key_name}")
     else:
         print("Invalid action. Nothing to do.")
 
