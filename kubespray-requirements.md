@@ -10,4 +10,15 @@ ModuleNotFoundError: No module named 'ruamel'
 - make ip and access_ip private in hosts.yaml
 - Add `node1 ansible_host=<public_ip>` under `[all]` in inventory.ini
 - Add `node1` under `[kube_control_plane]`, `[etcd]`, `[kube_node]` in inventory.ini
-- Change `kube_service_addresses` and `kube_pods_subnet`, ensure they have different ip ranges completely.
+- Change `kube_service_addresses` and `kube_pods_subnet`, ensure they have different ip ranges completely in group_vars/k8s_cluster/k8s-cluster.yml
+- Ansible command to run : `docker run --name kubespray -it --mount type=bind,source="$(pwd)"/inventory/k8s-single-node,dst=/inventory --mount type=bind,source=../aws-deployment/k8s-sandbox,dst=/root/.ssh/id_rsa quay.io/kubespray/kubespray:v2.24.1 bash -c "ansible-playbook -i /inventory/inventory.ini --private-key /root/.ssh/id_rsa --become --become-user=root  -u ubuntu cluster.yml"`
+- Login to the node, switch to root and run kubectl commands. 
+- Copy kube config to ubuntu user to execute commands as ubuntu user.
+
+# pip requirements for kubespray
+
+```
+ansible==8.7.0
+ruamel.yaml
+netaddr
+```
