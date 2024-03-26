@@ -4,6 +4,7 @@ import shlex
 import subprocess
 import json
 import argparse
+import traceback
 
 ssh_key_name = "k8s-sandbox"
 supported_clouds = ["aws"]
@@ -48,6 +49,29 @@ def create_tf_vars_aws():
         file.write(file_data)
     return None
 
+def tf_create():
+    run_in_bash("terraform init")
+    run_in_bash("terraform plan")
+    run_in_bash("terraform apply -auto-approve")
+    return None
+
+def get_ip_details():
+    tf_state_file = "terraform.tfstate"
+    with open(tf_state_file, "r") as file:
+        data = json.load(file)
+        try:
+            public_ip = data["outputs"]["instance_public_ip"]["value"]
+            private_ip = data["outputs"]["instance_private_ip"]["value"]
+        except KeyError:
+            print(traceback.format_exc())
+            return None
+    return {"public_ip": public_ip, "private_ip": private_ip}
+
+def prepare_inventory():
+    ip_details = get_ip_details()
+    print(ip_details)
+    return None
+
 if __name__ == "__main__":
     if args.cloud not in supported_clouds:
         print("Unsupported cloud provider. Exiting...")
@@ -61,9 +85,8 @@ if __name__ == "__main__":
             main_work_dir=os.getcwd()
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
-            run_in_bash("terraform init")
-            run_in_bash("terraform plan")
-            run_in_bash("terraform apply -auto-approve")
+            tf_create()
+            prepare_inventory()
     elif args.action == "destroy":
         if args.cloud == "aws":
             print("Destroying AWS resources...")
