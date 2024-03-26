@@ -86,7 +86,6 @@ resource "aws_instance" "dev_node" {
   key_name               = aws_key_pair.mtc_auth.id
   vpc_security_group_ids = [aws_security_group.mtc_sg.id]
   subnet_id              = aws_subnet.mtc_public_subnet.id
-  # user_data              = file("userdata.tpl")
 
   root_block_device {
     volume_size = var.instance_storage
@@ -97,13 +96,4 @@ resource "aws_instance" "dev_node" {
     Name = "k8s-sandbox"
   }
 
-  provisioner "local-exec" {
-    command = templatefile("${var.host_os}-ssh-config.tpl", {
-      hostname            = self.public_ip,
-      user                = var.ec2_user,
-      identityfile        = var.private_key_location
-      ssh_config_location = var.ssh_config_location
-    })
-    interpreter = var.host_os == "windows" ? ["Powershell", "-Command"] : ["bash", "-c"]
-  }
 }
