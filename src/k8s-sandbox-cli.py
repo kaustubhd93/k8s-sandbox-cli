@@ -1,13 +1,18 @@
 import os
 import sys
 import shlex
+import shutil
 import subprocess
 import json
 import argparse
 import traceback
 
+from pathlib import Path
+
 ssh_key_name = "k8s-sandbox"
 supported_clouds = ["aws"]
+kubespray_src_dir = f"{os.environ['HOME']}/workspace/poc/kubespray"
+inventory_dir = f"{kubespray_src_dir}/inventory/k8s-sandbox"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--action", type=str, choices=["create", "destroy"], help="The action to perform: create or destroy")
@@ -25,7 +30,7 @@ def run_in_bash(cmd):
         print(f"Command: {cmd} failed with error code {process.returncode}")
         print(f"Error: {process.stderr.read()}")
         sys.exit(process.returncode)
-    return None
+    return True
 
 def create_tf_vars_aws():
     tf_vars_aws = {
@@ -67,10 +72,18 @@ def get_ip_details():
             return None
     return {"public_ip": public_ip, "private_ip": private_ip}
 
-def prepare_inventory():
+def prepare_inventory_dir():
     ip_details = get_ip_details()
-    print(ip_details)
-    return None
+    if ip_details is not None:
+        shutil.copytree(f"{kubespray_src_dir}/inventory/sample", inventory_dir)
+        os.chdir(kubespray_src_dir)
+        print(f"Changed dir to ******************* {os.getcwd()}")
+        Path(f"{inventory_dir}/hosts.yaml").touch()
+        os.environ["CONFIG_FILE"] = f"{inventory_dir}/hosts.yaml"
+        if run_in_bash(f'python3 contrib/inventory_builder/inventory.py {ip_details["public_ip"]}'):
+            return True
+    else:
+        return None
 
 if __name__ == "__main__":
     if args.cloud not in supported_clouds:
@@ -86,7 +99,7 @@ if __name__ == "__main__":
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
             tf_create()
-            prepare_inventory()
+            prepare_inventory_dir()
     elif args.action == "destroy":
         if args.cloud == "aws":
             print("Destroying AWS resources...")
