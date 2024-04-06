@@ -21,4 +21,5 @@ ModuleNotFoundError: No module named 'ruamel'
 ansible==8.7.0
 ruamel.yaml
 netaddr
+PyYAML==6.0.1
 ```
