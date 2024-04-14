@@ -36,6 +36,7 @@ mkidr -p /opt/downloads
 # download latest release from containerd release page
 wget https://github.com/containerd/containerd/releases/download/v1.7.15/containerd-1.7.15-linux-amd64.tar.gz
 tar Cxzvf /usr/local containerd-1.7.15-linux-amd64.tar.gz
+mkdir -p /usr/local/lib/systemd/system/
 wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service -O /usr/local/lib/systemd/system/containerd.service
 systemctl daemon-reload
 systemctl enable --now containerd
@@ -63,6 +64,7 @@ apt-get update
 apt-get install -y apt-transport-https ca-certificates curl gpg
 stat /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
 apt-get update
 apt-get install -y kubelet kubeadm kubectl
 ```
@@ -73,6 +75,11 @@ kubeadm init --control-plane-endpoint=<private_ip> --apiserver-advertise-address
 mkdir -p /home/ubuntu/.kube
 cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
 chown -R ubuntu. /home/ubuntu/.kube/
+```
+
+- untaint master node
+```
+kubectl taint nodes --all node-role.kubernetes.io/control-plane-
 ```
 
 - deploy cni plugin for pod networking
