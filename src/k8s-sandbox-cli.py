@@ -7,14 +7,18 @@ import json
 import argparse
 import traceback
 import io
+import time 
+import requests
+import re
 from pathlib import Path
 from ruamel.yaml import YAML
 
 ssh_key_name = "k8s-sandbox"
 supported_clouds = ["aws"]
+user_data_wait_time = 300
+# if using kubespray
 kubespray_src_dir = f"{os.environ['HOME']}/workspace/poc/kubespray"
 inventory_dir = f"{kubespray_src_dir}/inventory/k8s-sandbox"
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--action", type=str, choices=["create", "destroy"], help="The action to perform: create or destroy")
@@ -75,6 +79,31 @@ def get_ip_details():
             print(traceback.format_exc())
             return None
     return {"public_ip": public_ip, "private_ip": private_ip}
+
+def get_release_version(repo_uri):
+    response = requests.get(f'https://api.github.com/repos/{repo_uri}/tags')
+    tags = json.loads(response.text)
+    for tag in tags:
+        if re.match(r'^v\d+\.\d+\.\d+$', tag['name']):
+            latest_tag = tag['name'].replace('v', '')
+            return latest_tag
+        continue
+    return None
+
+def prepare_user_data():
+    containerd_version = get_release_version('containerd/containerd')
+    runc_version = get_release_version('opencontainers/runc')
+    cni_plugins_version = get_release_version('containernetworking/plugins')
+    calico_version = get_release_version('projectcalico/calico')
+    # Adding escape character for sed command
+    pod_cidr = args.kube_pods_cidr.replace('/', '\/')
+    run_in_bash(f"cp setup-k8s-cluster.sh ../{args.cloud}-deployment/userdata.tpl")
+    run_in_bash(f"sed -i 's/containerd_version=placeholder/containerd_version={containerd_version}/g' ../{args.cloud}-deployment/userdata.tpl")
+    run_in_bash(f"sed -i 's/runc_version=placeholder/runc_version={runc_version}/g' ../{args.cloud}-deployment/userdata.tpl")
+    run_in_bash(f"sed -i 's/cni_plugins_version=placeholder/cni_plugins_version={cni_plugins_version}/g' ../{args.cloud}-deployment/userdata.tpl")
+    run_in_bash(f"sed -i 's/calico_version=placeholder/calico_version={calico_version}/g' ../{args.cloud}-deployment/userdata.tpl")
+    run_in_bash(f"sed -i 's/pod_cidr=placeholder/pod_cidr={pod_cidr}/g' ../{args.cloud}-deployment/userdata.tpl")
+    return None
 
 def prepare_inventory_files(ip_config):
     hosts_file = f"{inventory_dir}/hosts.yaml"
@@ -150,11 +179,18 @@ if __name__ == "__main__":
         if args.cloud == "aws":
             print("Generating tfvar file...")
             create_tf_vars_aws()
+            prepare_user_data()
             main_work_dir=os.getcwd()
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
             tf_create()
-            prepare_inventory_dir()
+        print("*****************************************************************")
+        print("Waiting for single node k8s cluster to be ready...")
+        print("*****************************************************************")
+        time.sleep(user_data_wait_time)
+        print("*****************************************************************")
+        print("Log into the node using ssh and run below command to check the status of the cluster:")
+        print("kubectl get nodes")
     elif args.action == "destroy":
         if args.cloud == "aws":
             print("Destroying AWS resources...")
