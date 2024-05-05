@@ -5,12 +5,14 @@ cni_plugins_version=placeholder
 calico_version=placeholder
 k8s_version="1.29"
 pod_cidr=placeholder
+nerdctl_version=placeholder
 private_ip=`hostname -I`
 # Define URLs
 containerd_url="https://github.com/containerd/containerd/releases/download/v$containerd_version/containerd-$containerd_version-linux-amd64.tar.gz"
 containerd_service_url="https://raw.githubusercontent.com/containerd/containerd/main/containerd.service"
 runc_url="https://github.com/opencontainers/runc/releases/download/v$runc_version/runc.amd64"
 cni_plugins_url="https://github.com/containernetworking/plugins/releases/download/v$cni_plugins_version/cni-plugins-linux-amd64-v$cni_plugins_version.tgz"
+nerdctl_url="https://github.com/containerd/nerdctl/releases/download/v$nerdctl_version/nerdctl-$nerdctl_version-linux-amd64.tar.gz"
 k8s_release_key_url="https://pkgs.k8s.io/core:/stable:/v$k8s_version/deb/Release.key"
 tigera_operator_url="https://raw.githubusercontent.com/projectcalico/calico/v$calico_version/manifests/tigera-operator.yaml"
 custom_resources_url="https://raw.githubusercontent.com/projectcalico/calico/v$calico_version/manifests/custom-resources.yaml"
@@ -83,3 +85,26 @@ kubectl create -f $custom_resources_url
 
 # Check node status whether ready
 kubectl get nodes
+
+# setup nerdctl 
+wget $nerdctl_url -O /opt/downloads/nerdctl.tar.gz
+tar Cxzvvf /usr/local/bin /opt/downloads/nerdctl.tar.gz
+mkdir -p /etc/nerdctl/
+containerd_unix_sock=`grep -i sock /etc/containerd/config.toml | grep address | awk -F"address = " '{print $2}' | tr -d '"'`
+cat <<EOF | tee /etc/nerdctl/nerdctl.toml
+# This is an example of /etc/nerdctl/nerdctl.toml .
+# Unrelated to the daemon's /etc/containerd/config.toml .
+
+debug          = false
+debug_full     = false
+address        = "$containerd_unix_sock"
+namespace      = "k8s.io"
+snapshotter    = "stargz"
+cgroup_manager = "cgroupfs"
+hosts_dir      = ["/etc/containerd/certs.d", "/etc/docker/certs.d"]
+experimental   = true
+EOF
+
+# kubeconfig for root user
+mkdir -p /root/.kube
+cp -i /etc/kubernetes/admin.conf /root/.kube/config

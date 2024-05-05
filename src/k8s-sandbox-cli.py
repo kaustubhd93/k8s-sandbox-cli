@@ -95,6 +95,7 @@ def prepare_user_data():
     runc_version = get_release_version('opencontainers/runc')
     cni_plugins_version = get_release_version('containernetworking/plugins')
     calico_version = get_release_version('projectcalico/calico')
+    nerdctl_version = get_release_version('containerd/nerdctl')
     # Adding escape character for sed command
     pod_cidr = args.kube_pods_cidr.replace('/', '\/')
     run_in_bash(f"cp setup-k8s-cluster.sh ../{args.cloud}-deployment/userdata.tpl")
@@ -103,6 +104,7 @@ def prepare_user_data():
     run_in_bash(f"sed -i 's/cni_plugins_version=placeholder/cni_plugins_version={cni_plugins_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     run_in_bash(f"sed -i 's/calico_version=placeholder/calico_version={calico_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     run_in_bash(f"sed -i 's/pod_cidr=placeholder/pod_cidr={pod_cidr}/g' ../{args.cloud}-deployment/userdata.tpl")
+    run_in_bash(f"sed -i 's/nerdctl_version=placeholder/nerdctl_version={nerdctl_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     return None
 
 def prepare_inventory_files(ip_config):
