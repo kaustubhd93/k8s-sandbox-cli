@@ -7,10 +7,13 @@ import json
 import argparse
 import traceback
 import io
-import time 
-import requests
+import time
 import re
+import requests
+
 from pathlib import Path
+from configparser import ConfigParser
+
 from ruamel.yaml import YAML
 
 ssh_key_name = "k8s-sandbox"
@@ -27,10 +30,11 @@ parser.add_argument("--vpc-cidr", type=str, default="10.10.0.0/16", help="New VP
 parser.add_argument("--region", type=str, default="us-east-1", help="The cloud provider region to use")
 parser.add_argument("--kube-pods-cidr", type=str, default="192.168.0.0/16", help="The CIDR to use for k8s pods")
 parser.add_argument("--kube-service-cidr", type=str, default="10.96.0.0/16", help="The CIDR to use for k8s service endpoints")
+parser.add_argument("--cloud-credentials", type=str, default= '{"creds":"none"}', help="Cloud provider credentials in json format")
 args = parser.parse_args()
 
 def run_in_bash(cmd):
-    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, env=os.environ.copy())
     for line in iter(process.stdout.readline, ''):
         print(line.strip())
     process.wait()
@@ -62,6 +66,23 @@ def create_tf_vars_aws():
         file.write(file_data)
     return None
 
+def create_credentials_file(cloud, credentials):
+    print(f"Creating credentials file for {cloud}...")
+    if cloud == "aws":
+        home_dir = os.environ["HOME"]
+        os.mkdir(f"{home_dir}/.aws")
+        credentials_file = f"{home_dir}/.aws/credentials"
+        credentials_data = json.loads(credentials)
+        credentials_data = {"sandbox": credentials_data}
+        config = ConfigParser()
+        with open(credentials_file, "w") as file:
+            for section, options in credentials_data.items():
+                config.add_section(section)
+                for key, value in options.items():
+                    config.set(section, key, str(value))
+            config.write(file)
+    return None
+
 def tf_create():
     run_in_bash("terraform init")
     run_in_bash("terraform plan")
@@ -91,11 +112,14 @@ def get_release_version(repo_uri):
     return None
 
 def prepare_user_data():
+    print("Preparing user data...")
+    print("Getting latest release versions of k8s dependencies...")
     containerd_version = get_release_version('containerd/containerd')
     runc_version = get_release_version('opencontainers/runc')
     cni_plugins_version = get_release_version('containernetworking/plugins')
     calico_version = get_release_version('projectcalico/calico')
     nerdctl_version = get_release_version('containerd/nerdctl')
+    print("Done getting latest release versions...")
     # Adding escape character for sed command
     pod_cidr = args.kube_pods_cidr.replace('/', '\/')
     run_in_bash(f"cp setup-k8s-cluster.sh ../{args.cloud}-deployment/userdata.tpl")
@@ -185,6 +209,8 @@ if __name__ == "__main__":
             main_work_dir=os.getcwd()
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
+            if os.path.exists("/.dockerenv"):
+                create_credentials_file(args.cloud, args.cloud_credentials)
             tf_create()
         print("*****************************************************************")
         print("Waiting for single node k8s cluster to be ready...")
