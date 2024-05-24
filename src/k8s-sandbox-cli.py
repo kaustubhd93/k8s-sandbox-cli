@@ -199,6 +199,11 @@ if __name__ == "__main__":
     if args.cloud not in supported_clouds:
         print("Unsupported cloud provider. Exiting...")
         sys.exit(1)
+    if os.path.exists("/.dockerenv"):
+        print("Running inside docker.")
+        create_credentials_file(args.cloud, args.cloud_credentials)
+    else:
+        print("Not running inside docker.")
     if args.action == "create":
         print("Creating SSH key pair...")
         run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
@@ -209,8 +214,6 @@ if __name__ == "__main__":
             main_work_dir=os.getcwd()
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
-            if os.path.exists("/.dockerenv"):
-                create_credentials_file(args.cloud, args.cloud_credentials)
             tf_create()
         print("*****************************************************************")
         print("Waiting for single node k8s cluster to be ready...")
