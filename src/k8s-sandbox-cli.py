@@ -19,9 +19,12 @@ from ruamel.yaml import YAML
 ssh_key_name = "k8s-sandbox"
 supported_clouds = ["aws"]
 user_data_wait_time = 300
-# if using kubespray
-kubespray_src_dir = f"{os.environ['HOME']}/workspace/poc/kubespray"
-inventory_dir = f"{kubespray_src_dir}/inventory/k8s-sandbox"
+if os.path.exists("/.dockerenv"):
+    pub_key_file_path = f"/opt/keys/{ssh_key_name}.pub"
+    private_key_file_path = f"/opt/keys/{ssh_key_name}"
+else:
+    pub_key_file_path = f"{ssh_key_name}.pub"
+    private_key_file_path = f"{ssh_key_name}"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--action", type=str, choices=["create", "destroy"], help="The action to perform: create or destroy")
@@ -31,6 +34,7 @@ parser.add_argument("--region", type=str, default="us-east-1", help="The cloud p
 parser.add_argument("--kube-pods-cidr", type=str, default="192.168.0.0/16", help="The CIDR to use for k8s pods")
 parser.add_argument("--kube-service-cidr", type=str, default="10.96.0.0/16", help="The CIDR to use for k8s service endpoints")
 parser.add_argument("--cloud-credentials", type=str, default= '{"creds":"none"}', help="Cloud provider credentials in json format")
+parser.add_argument("--tf-state-bucket", type=str, help="s3 bucket name/blob storage name/storage bucket name")
 args = parser.parse_args()
 
 def run_in_bash(cmd):
@@ -54,16 +58,28 @@ def create_tf_vars_aws():
         "user_ip": "0.0.0.0/0",
         "host_os": "linux",
         "ssh_config_location": "~/.ssh/config",
-        "public_key_location": f"{ssh_key_name}.pub",
-        "private_key_location": f"{ssh_key_name}",
+        "public_key_location": pub_key_file_path,
+        "private_key_location": private_key_file_path,
         "key_name": "k8s-sandbox",
         "instance_type": "t3a.medium",
         "ec2_user": "ubuntu",
-        "instance_storage": 20
+        "instance_storage": 20,
+        "bucket_name": args.tf_state_bucket
     }
     file_data = json.dumps(tf_vars_aws)
     with open ("../aws-deployment/terraform.tfvars.json", "w") as file:
         file.write(file_data)
+    return None
+
+def create_backend_config():
+    backend_config = f'''
+bucket = "{args.tf_state_bucket}"
+key = "k8s-sandbox/terraform.tfstate"
+region = "{args.region}"
+profile = "sandbox"
+'''
+    with open (f"../{args.cloud}-deployment/backend.conf", "w") as file:
+        file.write(backend_config)
     return None
 
 def create_credentials_file(cloud, credentials):
@@ -84,7 +100,7 @@ def create_credentials_file(cloud, credentials):
     return None
 
 def tf_create():
-    run_in_bash("terraform init")
+    run_in_bash("terraform init -backend-config=backend.conf")
     run_in_bash("terraform plan")
     run_in_bash("terraform apply -auto-approve")
     return None
@@ -131,70 +147,6 @@ def prepare_user_data():
     run_in_bash(f"sed -i 's/nerdctl_version=placeholder/nerdctl_version={nerdctl_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     return None
 
-def prepare_inventory_files(ip_config):
-    hosts_file = f"{inventory_dir}/hosts.yaml"
-    inventory_file = f"{inventory_dir}/inventory.ini"
-    k8s_yml_file = f"{inventory_dir}/group_vars/k8s_cluster/k8s-cluster.yml"
-    with open(hosts_file, "r") as file:
-        import yaml
-        hosts_data = yaml.load(file, Loader=yaml.FullLoader)
-        hosts_data["all"]["hosts"]["node1"]["ip"] = ip_config["instance_ip_details"]["private_ip"]
-        hosts_data["all"]["hosts"]["node1"]["access_ip"] = ip_config["instance_ip_details"]["private_ip"]
-    with io.open(hosts_file, "w", encoding="utf8") as out_file:
-        yaml.dump(hosts_data, out_file, default_flow_style=False, allow_unicode=True)
-
-    inventory_str = f"""[all]
-node1 ansible_host={ip_config["instance_ip_details"]["public_ip"]}
-
-[kube_control_plane]
-node1
-
-[etcd]
-node1
-
-[kube_node]
-node1
-
-[calico_rr]
-
-[k8s_cluster:children]
-kube_control_plane
-kube_node
-calico_rr
-"""
-    with open(inventory_file, "w+") as file:
-        file.write(inventory_str)
-
-    with open(k8s_yml_file, "r") as file:
-        yaml = YAML()
-        yaml.default_flow_style = False
-        k8s_data = yaml.load(file)
-        k8s_data["kube_service_addresses"] = ip_config["kube_service_cidr"]
-        k8s_data["kube_pods_subnet"] = ip_config["kube_pods_cidr"]
-    with io.open(k8s_yml_file, "w", encoding="utf8") as out_file:
-         yaml.dump(k8s_data, out_file)
-    return None
-
-def prepare_inventory_dir():
-    ip_details = get_ip_details()
-    if ip_details is not None:
-        shutil.copytree(f"{kubespray_src_dir}/inventory/sample", inventory_dir)
-        os.chdir(kubespray_src_dir)
-        print(f"Changed dir to ******************* {os.getcwd()}")
-        Path(f"{inventory_dir}/hosts.yaml").touch()
-        os.environ["CONFIG_FILE"] = f"{inventory_dir}/hosts.yaml"
-        if run_in_bash(f'python3 contrib/inventory_builder/inventory.py {ip_details["public_ip"]}'):
-            ip_config = {
-                "instance_ip_details": ip_details,
-                "kube_pods_cidr": args.kube_pods_cidr,
-                "kube_service_cidr": args.kube_service_cidr
-                }
-            if prepare_inventory_files(ip_config):
-                return True
-            return False
-    else:
-        return None
-
 if __name__ == "__main__":
     if args.cloud not in supported_clouds:
         print("Unsupported cloud provider. Exiting...")
@@ -206,10 +158,12 @@ if __name__ == "__main__":
         print("Not running inside docker.")
     if args.action == "create":
         print("Creating SSH key pair...")
-        run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
+        if not os.path.exists("/.dockerenv"):
+            run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
         if args.cloud == "aws":
             print("Generating tfvar file...")
             create_tf_vars_aws()
+            print("Generating backend config file...")
             prepare_user_data()
             main_work_dir=os.getcwd()
             os.chdir(f"../{args.cloud}-deployment")
@@ -224,11 +178,16 @@ if __name__ == "__main__":
         print("kubectl get nodes")
     elif args.action == "destroy":
         if args.cloud == "aws":
+            create_tf_vars_aws()
             print("Destroying AWS resources...")
             os.chdir(f"../{args.cloud}-deployment")
+            create_backend_config()
+            if os.path.exists("/.dockerenv"):
+                run_in_bash("terraform init -backend-config=backend.conf")
             run_in_bash("terraform destroy -auto-approve")
-            os.remove(f"{ssh_key_name}.pub")
-            os.remove(f"{ssh_key_name}")
+            if not os.path.exists("/.dockerenv"):
+                os.remove(f"{ssh_key_name}.pub")
+                os.remove(f"{ssh_key_name}")
     else:
         print("Invalid action. Nothing to do.")
 
