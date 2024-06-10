@@ -71,3 +71,8 @@ variable "instance_storage" {
   type        = string
   description = "EBS storage for instance in GiB."
 }
+
+variable "bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket for Terraform state."
+}
