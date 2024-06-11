@@ -39,3 +39,6 @@ terraform.rc
 
 # Ignore userdata.tpl
 userdata.tpl
+
+# ignore backend.conf
+backend.conf
