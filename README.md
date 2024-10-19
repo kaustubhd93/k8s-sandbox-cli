@@ -10,6 +10,8 @@ A command line interface to launch a kubernetes sandbox on your preferred cloud 
 
 - `bash /tmp/gen-ssh-keys.sh`
 
+- create a s3 bucket to store the Terraform state.
+
 - Create k8s-sandbox single-node cluster
 ```
 docker run --name k8s-sandbox-cli-create -v /tmp/k8s-sandbox-cli/keys/:/opt/keys/ \
@@ -24,8 +26,7 @@ docker run --name k8s-sandbox-cli-create -v /tmp/k8s-sandbox-cli/keys/:/opt/keys
 - Once you are done with your POC you can now destroy the infra.  
 ```
 docker run --name k8s-sandbox-cli-destroy -v /tmp/k8s-sandbox-cli/keys/:/opt/keys/ \
--it kaustubhdesai/k8s-sandbox-cli:0.1.0 \
---action destroy --cloud aws --vpc-cidr <cidr> \
+-it kaustubhdesai/k8s-sandbox-cli:0.1.0 --action destroy \
 --region <region> --tf-state-bucket <bucket_name> \
 --cloud-credentials '{"region":"region","aws_access_key_id":"access_key","aws_secret_access_key":"secret_key"}'
 ```
@@ -44,8 +45,8 @@ aws_secret_access_key = <secret_access_key>
 ## Instructions  (Running without docker)
 - Clone the code on your system using `git clone https://github.com/kaustubhd93/k8s-sandbox-cli.git`
 - `cd src`
-- `python3 k8s-sandbox-cli.py --action create --cloud aws --vpc-cidr <cidr> --region <region>`
+- `python3 k8s-sandbox-cli.py --action create --cloud aws --vpc-cidr <cidr> --region <region> --tf-state-bucket <bucket_name>`
 - `ssh -i ../aws-deployment/k8s-sandbox <public_ip_displayed_in_output>`
-- When you are done working: `python3 k8s-sandbox-cli.py --action destroy --cloud aws`
+- When you are done working: `python3 k8s-sandbox-cli.py --action destroy --cloud aws --tf-state-bucket <bucket_name>`
 
 ### Initially forked from [morethancertified/kubernetes-sandbox](https://github.com/morethancertified/kubernetes-sandbox)
