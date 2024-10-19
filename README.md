@@ -44,6 +44,7 @@ aws_secret_access_key = <secret_access_key>
 
 ## Instructions  (Running without docker)
 - Clone the code on your system using `git clone https://github.com/kaustubhd93/k8s-sandbox-cli.git`
+- `pip install src/requirements.txt`
 - `cd src`
 - `python3 k8s-sandbox-cli.py --action create --cloud aws --vpc-cidr <cidr> --region <region> --tf-state-bucket <bucket_name>`
 - `ssh -i ../aws-deployment/k8s-sandbox <public_ip_displayed_in_output>`
