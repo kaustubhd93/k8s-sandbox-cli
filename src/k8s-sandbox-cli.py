@@ -164,6 +164,7 @@ if __name__ == "__main__":
             print("Generating tfvar file...")
             create_tf_vars_aws()
             print("Generating backend config file...")
+            create_backend_config()
             prepare_user_data()
             main_work_dir=os.getcwd()
             os.chdir(f"../{args.cloud}-deployment")
