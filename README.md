@@ -15,7 +15,7 @@ A command line interface to launch a kubernetes sandbox on your preferred cloud 
 - Create k8s-sandbox single-node cluster
 ```
 docker run --name k8s-sandbox-cli-create -v /tmp/k8s-sandbox-cli/keys/:/opt/keys/ \
--it kaustubhdesai/k8s-sandbox-cli:0.1.0  \
+-it kaustubhdesai/k8s-sandbox-cli:0.2.0  \
 --action create --cloud aws --vpc-cidr <cidr> \
 --region <region> --tf-state-bucket <bucket_name> \
 --cloud-credentials '{"region":"region","aws_access_key_id":"access_key","aws_secret_access_key":"secret_key"}'
@@ -26,7 +26,7 @@ docker run --name k8s-sandbox-cli-create -v /tmp/k8s-sandbox-cli/keys/:/opt/keys
 - Once you are done with your POC you can now destroy the infra.  
 ```
 docker run --name k8s-sandbox-cli-destroy -v /tmp/k8s-sandbox-cli/keys/:/opt/keys/ \
--it kaustubhdesai/k8s-sandbox-cli:0.1.0 --action destroy \
+-it kaustubhdesai/k8s-sandbox-cli:0.2.0 --action destroy \
 --region <region> --tf-state-bucket <bucket_name> \
 --cloud-credentials '{"region":"region","aws_access_key_id":"access_key","aws_secret_access_key":"secret_key"}'
 ```
