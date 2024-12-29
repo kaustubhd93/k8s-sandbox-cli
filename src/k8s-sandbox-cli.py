@@ -18,7 +18,7 @@ from ruamel.yaml import YAML
 
 ssh_key_name = "k8s-sandbox"
 supported_clouds = ["aws"]
-user_data_wait_time = 300
+user_data_wait_time = 240
 if os.path.exists("/.dockerenv"):
     pub_key_file_path = f"/opt/keys/{ssh_key_name}.pub"
     private_key_file_path = f"/opt/keys/{ssh_key_name}"
@@ -181,8 +181,9 @@ if __name__ == "__main__":
         if args.cloud == "aws":
             create_tf_vars_aws()
             print("Destroying AWS resources...")
-            os.chdir(f"../{args.cloud}-deployment")
             create_backend_config()
+            prepare_user_data()
+            os.chdir(f"../{args.cloud}-deployment")
             if os.path.exists("/.dockerenv"):
                 run_in_bash("terraform init -backend-config=backend.conf")
             run_in_bash("terraform destroy -auto-approve")
