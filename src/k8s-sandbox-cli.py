@@ -133,7 +133,6 @@ def prepare_user_data():
     containerd_version = get_release_version('containerd/containerd')
     runc_version = get_release_version('opencontainers/runc')
     cni_plugins_version = get_release_version('containernetworking/plugins')
-    calico_version = get_release_version('projectcalico/calico')
     nerdctl_version = get_release_version('containerd/nerdctl')
     print("Done getting latest release versions...")
     # Adding escape character for sed command
@@ -142,7 +141,6 @@ def prepare_user_data():
     run_in_bash(f"sed -i 's/containerd_version=placeholder/containerd_version={containerd_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     run_in_bash(f"sed -i 's/runc_version=placeholder/runc_version={runc_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     run_in_bash(f"sed -i 's/cni_plugins_version=placeholder/cni_plugins_version={cni_plugins_version}/g' ../{args.cloud}-deployment/userdata.tpl")
-    run_in_bash(f"sed -i 's/calico_version=placeholder/calico_version={calico_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     run_in_bash(f"sed -i 's/pod_cidr=placeholder/pod_cidr={pod_cidr}/g' ../{args.cloud}-deployment/userdata.tpl")
     run_in_bash(f"sed -i 's/nerdctl_version=placeholder/nerdctl_version={nerdctl_version}/g' ../{args.cloud}-deployment/userdata.tpl")
     return None
