@@ -5,10 +5,6 @@ terraform {
       version = "6.8.0"
     }
   }
-  backend "gcs" {
-    bucket  = var.bucket_name
-    prefix  = var.key_prefix
-  }
 }
 
 provider "google" {
@@ -19,6 +15,14 @@ provider "google" {
 
 resource "google_compute_network" "vpc_network" {
   name = var.vpc_network_name
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "vpc_subnet" {
+  name          = "${var.vpc_network_name}-subnet"
+  ip_cidr_range = var.vpc_cidr
+  region        = var.region
+  network       = google_compute_network.vpc_network.id
 }
 
 resource "google_compute_instance" "vm_instance" {
@@ -34,6 +38,7 @@ resource "google_compute_instance" "vm_instance" {
 
   network_interface {
     network = google_compute_network.vpc_network.name
+    subnetwork = google_compute_subnetwork.vpc_subnet.name
     access_config {
       
     }

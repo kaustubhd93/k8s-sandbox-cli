@@ -30,6 +30,10 @@ variable "vpc_network_name" {
   type = string
 }
 
+variable "vpc_cidr" {
+  type = string
+}
+
 variable "vm_instance_name" {
   type = string
 }
