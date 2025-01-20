@@ -42,3 +42,4 @@ userdata.tpl
 
 # ignore backend.conf
 backend.conf
+gcp-deployment/backend.tf
