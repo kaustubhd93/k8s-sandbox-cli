@@ -17,7 +17,7 @@ from configparser import ConfigParser
 from ruamel.yaml import YAML
 
 ssh_key_name = "k8s-sandbox"
-supported_clouds = ["aws"]
+supported_clouds = ["aws", "gcp"]
 user_data_wait_time = 240
 if os.path.exists("/.dockerenv"):
     pub_key_file_path = f"/opt/keys/{ssh_key_name}.pub"
@@ -28,13 +28,14 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--action", type=str, choices=["create", "destroy"], help="The action to perform: create or destroy")
-parser.add_argument("--cloud", type=str, choices=["aws"], help="The cloud provider to use")
+parser.add_argument("--cloud", type=str, choices=["aws", "gcp"], help="The cloud provider to use")
 parser.add_argument("--vpc-cidr", type=str, default="10.10.0.0/16", help="New VPC CIDR to use")
 parser.add_argument("--region", type=str, default="us-east-1", help="The cloud provider region to use")
 parser.add_argument("--kube-pods-cidr", type=str, default="192.168.0.0/16", help="The CIDR to use for k8s pods")
 parser.add_argument("--kube-service-cidr", type=str, default="10.96.0.0/16", help="The CIDR to use for k8s service endpoints")
 parser.add_argument("--cloud-credentials", type=str, default= '{"creds":"none"}', help="Cloud provider credentials in json format")
 parser.add_argument("--tf-state-bucket", type=str, help="s3 bucket name/blob storage name/storage bucket name")
+parser.add_argument("--gcp-project-id", type=str, help="The project id to use for Google cloud.")
 args = parser.parse_args()
 
 def run_in_bash(cmd):
@@ -49,6 +50,7 @@ def run_in_bash(cmd):
     return True
 
 def create_tf_vars_aws():
+    print("Generating tfvar file...")
     tf_vars_aws = {
         "credentials_profile": "sandbox",
         "environment_tag": "sandbox",
@@ -68,6 +70,24 @@ def create_tf_vars_aws():
     }
     file_data = json.dumps(tf_vars_aws)
     with open ("../aws-deployment/terraform.tfvars.json", "w") as file:
+        file.write(file_data)
+    return None
+
+def create_tf_vars_gcp():
+    print("Generating tfvar file...")
+    tf_vars_gcp = {
+        "project_id": args.gcp_project_id,
+        "region": args.region,
+        "zone": f"{args.region}-a",
+        "vpc_network_name": "k8s-sandbox",
+        "vpc_cidr": args.vpc_cidr,
+        "ssh_key_file_path": pub_key_file_path,
+        "machine_type": "e2-medium",
+        "machine_image": "ubuntu-2204-jammy-v20250112",
+        "instance_storage": 20
+    }
+    file_data = json.dumps(tf_vars_gcp)
+    with open ("../gcp-deployment/terraform.tfvars.json", "w") as file:
         file.write(file_data)
     return None
 
@@ -100,9 +120,13 @@ def create_credentials_file(cloud, credentials):
     return None
 
 def tf_create():
-    run_in_bash("terraform init -backend-config=backend.conf")
-    run_in_bash("terraform plan")
-    run_in_bash("terraform apply -auto-approve")
+    if args.cloud == "aws":
+        run_in_bash("terraform init -backend-config=backend.conf")
+        run_in_bash("terraform plan")
+        run_in_bash("terraform apply -auto-approve")
+    if args.cloud == "gcp":
+        run_in_bash("terraform init")
+        run_in_bash("terraform apply -auto-approve")
     return None
 
 def get_ip_details():
@@ -159,7 +183,6 @@ if __name__ == "__main__":
         if not os.path.exists("/.dockerenv"):
             run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
         if args.cloud == "aws":
-            print("Generating tfvar file...")
             create_tf_vars_aws()
             print("Generating backend config file...")
             create_backend_config()
@@ -168,10 +191,12 @@ if __name__ == "__main__":
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
             tf_create()
+        if args.cloud == "gcp":
+            create_tf_vars_gcp()
         print("*****************************************************************")
         print("Waiting for single node k8s cluster to be ready...")
         print("*****************************************************************")
-        time.sleep(user_data_wait_time)
+        #time.sleep(user_data_wait_time)
         print("*****************************************************************")
         print("Log into the node using ssh and run below command to check the status of the cluster:")
         print("kubectl get nodes")
