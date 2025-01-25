@@ -33,6 +33,7 @@ resource "google_compute_instance" "vm_instance" {
   boot_disk {
     initialize_params {
       image = var.machine_image
+      size = var.instance_storage
     }
   }
 

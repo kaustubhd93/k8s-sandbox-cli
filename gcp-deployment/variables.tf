@@ -18,14 +18,6 @@ variable "machine_image" {
   type = string
 }
 
-variable "bucket_name" {
-  type = string
-}
-
-variable "key_prefix" {
-  type = string
-}
-
 variable "vpc_network_name" {
   type = string
 }
@@ -39,5 +31,9 @@ variable "vm_instance_name" {
 }
 
 variable "ssh_key_file_path" {
+  type = string
+}
+
+variable "instance_storage" {
   type = string
 }
