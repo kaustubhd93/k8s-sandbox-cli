@@ -84,6 +84,7 @@ def create_tf_vars_gcp():
         "ssh_key_file_path": pub_key_file_path,
         "machine_type": "e2-medium",
         "machine_image": "ubuntu-2204-jammy-v20250112",
+        "vm_instance_name": "k8s-sandbox",
         "instance_storage": 20
     }
     file_data = json.dumps(tf_vars_gcp)
@@ -92,14 +93,26 @@ def create_tf_vars_gcp():
     return None
 
 def create_backend_config():
-    backend_config = f'''
-bucket = "{args.tf_state_bucket}"
-key = "k8s-sandbox/terraform.tfstate"
-region = "{args.region}"
-profile = "sandbox"
-'''
-    with open (f"../{args.cloud}-deployment/backend.conf", "w") as file:
-        file.write(backend_config)
+    if args.cloud == "aws":
+        backend_config = f'''
+    bucket = "{args.tf_state_bucket}"
+    key = "k8s-sandbox/terraform.tfstate"
+    region = "{args.region}"
+    profile = "sandbox"
+    '''
+        backend_config_file = f"../{args.cloud}-deployment/backend.conf"
+    elif args.cloud == "gcp":
+        backend_config = f'''
+    terraform {{
+        backend "gcs" {{
+            bucket = "{args.tf_state_bucket}"
+            prefix = "k8s-sandbox"
+        }}
+    }}
+    '''
+        backend_config_file = f"../{args.cloud}-deployment/backend.tf"
+    with open (backend_config_file, "w") as file:
+            file.write(backend_config)
     return None
 
 def create_credentials_file(cloud, credentials):
@@ -122,11 +135,12 @@ def create_credentials_file(cloud, credentials):
 def tf_create():
     if args.cloud == "aws":
         run_in_bash("terraform init -backend-config=backend.conf")
-        run_in_bash("terraform plan")
-        run_in_bash("terraform apply -auto-approve")
-    if args.cloud == "gcp":
+    elif args.cloud == "gcp":
         run_in_bash("terraform init")
-        run_in_bash("terraform apply -auto-approve")
+    else:
+        return None
+    run_in_bash("terraform plan")
+    run_in_bash("terraform apply -auto-approve")
     return None
 
 def get_ip_details():
@@ -191,28 +205,42 @@ if __name__ == "__main__":
             os.chdir(f"../{args.cloud}-deployment")
             print(f"Currently in {os.getcwd()}")
             tf_create()
-        if args.cloud == "gcp":
+        elif args.cloud == "gcp":
             create_tf_vars_gcp()
+            create_backend_config()
+            prepare_user_data()
+            main_work_dir=os.getcwd()
+            os.chdir(f"../{args.cloud}-deployment")
+            print(f"Currently in {os.getcwd()}")
+            tf_create()
+        else:
+            print("Unsupported cloud provider. Exiting...")
+            sys.exit(1)
         print("*****************************************************************")
         print("Waiting for single node k8s cluster to be ready...")
         print("*****************************************************************")
-        #time.sleep(user_data_wait_time)
+        time.sleep(user_data_wait_time)
         print("*****************************************************************")
         print("Log into the node using ssh and run below command to check the status of the cluster:")
         print("kubectl get nodes")
     elif args.action == "destroy":
         if args.cloud == "aws":
             create_tf_vars_aws()
-            print("Destroying AWS resources...")
-            create_backend_config()
-            prepare_user_data()
-            os.chdir(f"../{args.cloud}-deployment")
-            if os.path.exists("/.dockerenv"):
+        elif args.cloud == "gcp":
+            create_tf_vars_gcp()
+        print("Destroying AWS resources...")
+        create_backend_config()
+        prepare_user_data()
+        os.chdir(f"../{args.cloud}-deployment")
+        if os.path.exists("/.dockerenv"):
+            if args.cloud == "aws":
                 run_in_bash("terraform init -backend-config=backend.conf")
-            run_in_bash("terraform destroy -auto-approve")
-            if not os.path.exists("/.dockerenv"):
-                os.remove(f"{ssh_key_name}.pub")
-                os.remove(f"{ssh_key_name}")
+            elif args.cloud == "gcp":
+                run_in_bash("terraform init")
+        run_in_bash("terraform destroy -auto-approve")
+        if not os.path.exists("/.dockerenv"):
+            os.remove(f"{ssh_key_name}.pub")
+            os.remove(f"{ssh_key_name}")
     else:
         print("Invalid action. Nothing to do.")
 
