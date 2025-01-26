@@ -127,6 +127,12 @@ def create_credentials_file(cloud, credentials):
                 for key, value in options.items():
                     config.set(section, key, str(value))
             config.write(file)
+    elif cloud == "gcp":
+        home_dir = os.environ["HOME"]
+        os.makedirs(f"{home_dir}/.config/gcloud")
+        credentials_file = f"{home_dir}/.config/gcloud/application_default_credentials.json"
+        with open(credentials_file, "w") as file:
+            file.write(credentials)
     return None
 
 def tf_create():
