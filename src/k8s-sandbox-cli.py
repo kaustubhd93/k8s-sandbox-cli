@@ -49,50 +49,47 @@ def run_in_bash(cmd):
         sys.exit(process.returncode)
     return True
 
-def create_tf_vars_aws():
-    print("Generating tfvar file...")
-    tf_vars_aws = {
-        "credentials_profile": "sandbox",
-        "environment_tag": "sandbox",
-        "project_tag": "k8s-sandbox",
-        "region": args.region,
-        "vpc_cidr": args.vpc_cidr,
-        "user_ip": "0.0.0.0/0",
-        "host_os": "linux",
-        "ssh_config_location": "~/.ssh/config",
-        "public_key_location": pub_key_file_path,
-        "private_key_location": private_key_file_path,
-        "key_name": "k8s-sandbox",
-        "instance_type": "t3a.medium",
-        "ec2_user": "ubuntu",
-        "instance_storage": 20,
-        "bucket_name": args.tf_state_bucket
-    }
-    file_data = json.dumps(tf_vars_aws)
-    with open ("../aws-deployment/terraform.tfvars.json", "w") as file:
-        file.write(file_data)
-    return None
-
-def create_tf_vars_gcp():
-    print("Generating tfvar file...")
-    tf_vars_gcp = {
-        "project_id": args.gcp_project_id,
-        "region": args.region,
-        "zone": f"{args.region}-a",
-        "vpc_network_name": "k8s-sandbox",
-        "vpc_cidr": args.vpc_cidr,
-        "ssh_key_file_path": pub_key_file_path,
-        "machine_type": "e2-medium",
-        "machine_image": "ubuntu-2204-jammy-v20250112",
-        "vm_instance_name": "k8s-sandbox",
-        "instance_storage": 20
-    }
-    file_data = json.dumps(tf_vars_gcp)
-    with open ("../gcp-deployment/terraform.tfvars.json", "w") as file:
+def create_tf_vars():
+    if args.cloud == "aws":
+        tf_vars = {
+            "credentials_profile": "sandbox",
+            "environment_tag": "sandbox",
+            "project_tag": "k8s-sandbox",
+            "region": args.region,
+            "vpc_cidr": args.vpc_cidr,
+            "user_ip": "0.0.0.0/0",
+            "host_os": "linux",
+            "ssh_config_location": "~/.ssh/config",
+            "public_key_location": pub_key_file_path,
+            "private_key_location": private_key_file_path,
+            "key_name": "k8s-sandbox",
+            "instance_type": "t3a.medium",
+            "ec2_user": "ubuntu",
+            "instance_storage": 20,
+            "bucket_name": args.tf_state_bucket
+        }
+    elif args.cloud == "gcp":
+        tf_vars = {
+            "project_id": args.gcp_project_id,
+            "region": args.region,
+            "zone": f"{args.region}-a",
+            "vpc_network_name": "k8s-sandbox",
+            "vpc_cidr": args.vpc_cidr,
+            "ssh_key_file_path": pub_key_file_path,
+            "machine_type": "e2-medium",
+            "machine_image": "ubuntu-2204-jammy-v20250112",
+            "vm_instance_name": "k8s-sandbox",
+            "instance_storage": 20
+        }
+    else:
+        return None
+    file_data = json.dumps(tf_vars)
+    with open (f"../{args.cloud}-deployment/terraform.tfvars.json", "w") as file:
         file.write(file_data)
     return None
 
 def create_backend_config():
+    print("Generating backend config file...")
     if args.cloud == "aws":
         backend_config = f'''
     bucket = "{args.tf_state_bucket}"
@@ -196,26 +193,13 @@ if __name__ == "__main__":
         print("Creating SSH key pair...")
         if not os.path.exists("/.dockerenv"):
             run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
-        if args.cloud == "aws":
-            create_tf_vars_aws()
-            print("Generating backend config file...")
-            create_backend_config()
-            prepare_user_data()
-            main_work_dir=os.getcwd()
-            os.chdir(f"../{args.cloud}-deployment")
-            print(f"Currently in {os.getcwd()}")
-            tf_create()
-        elif args.cloud == "gcp":
-            create_tf_vars_gcp()
-            create_backend_config()
-            prepare_user_data()
-            main_work_dir=os.getcwd()
-            os.chdir(f"../{args.cloud}-deployment")
-            print(f"Currently in {os.getcwd()}")
-            tf_create()
-        else:
-            print("Unsupported cloud provider. Exiting...")
-            sys.exit(1)
+        create_tf_vars()
+        create_backend_config()
+        prepare_user_data()
+        main_work_dir=os.getcwd()
+        os.chdir(f"../{args.cloud}-deployment")
+        print(f"Currently in {os.getcwd()}")
+        tf_create()
         print("*****************************************************************")
         print("Waiting for single node k8s cluster to be ready...")
         print("*****************************************************************")
@@ -224,11 +208,8 @@ if __name__ == "__main__":
         print("Log into the node using ssh and run below command to check the status of the cluster:")
         print("kubectl get nodes")
     elif args.action == "destroy":
-        if args.cloud == "aws":
-            create_tf_vars_aws()
-        elif args.cloud == "gcp":
-            create_tf_vars_gcp()
-        print("Destroying AWS resources...")
+        create_tf_vars()
+        print("Destroying cloud resources...")
         create_backend_config()
         prepare_user_data()
         os.chdir(f"../{args.cloud}-deployment")
