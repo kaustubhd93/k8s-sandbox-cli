@@ -3,6 +3,7 @@ A command line interface to launch a kubernetes sandbox on your preferred cloud 
 
 ## Supported Cloud providers
 - AWS
+- GCP
 
 ## Instructions (if you have docker)
 
@@ -12,13 +13,23 @@ A command line interface to launch a kubernetes sandbox on your preferred cloud 
 
 - create a s3 bucket to store the Terraform state.
 
-- Create k8s-sandbox single-node cluster
+- Create k8s-sandbox single-node cluster on aws
 ```
 docker run --name k8s-sandbox-cli-create -v /tmp/k8s-sandbox-cli/keys/:/opt/keys/ \
 -it kaustubhdesai/k8s-sandbox-cli:0.3.0  \
 --action create --cloud aws --vpc-cidr <cidr> \
 --region <region> --tf-state-bucket <bucket_name> \
 --cloud-credentials '{"region":"region","aws_access_key_id":"access_key","aws_secret_access_key":"secret_key"}'
+```
+
+- Create k8s-sandbox single-node cluster on GCP
+```
+docker run --name k8s-sandbox-cli-create -v /tmp/k8s-sandbox-cli/keys/:/opt/keys/ \
+-it kaustubhdesai/k8s-sandbox-cli:0.3.0  \
+--action create --cloud gcp --vpc-cidr <cidr> \
+--region <region> --tf-state-bucket <bucket_name> \
+--cloud-credentials '{}' \
+--gcp-project-id <gcp-project-id>
 ```
 
 - Log into the server using public ip displayed in the output of the previous command `ssh -i /tmp/k8s-sandbox-cli/keys/k8s-sandbox ubuntu@<public_ip>`
