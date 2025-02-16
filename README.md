@@ -1,5 +1,5 @@
 # k8s-sandbox-cli
-A command line interface to launch a kubernetes sandbox on your preferred cloud provider
+A command line interface to launch a kubernetes sandbox instance on your preferred cloud provider.
 
 ## Supported Cloud providers
 - AWS
