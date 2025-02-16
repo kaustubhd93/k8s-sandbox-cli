@@ -196,8 +196,8 @@ if __name__ == "__main__":
     else:
         print("Not running inside docker.")
     if args.action == "create":
-        print("Creating SSH key pair...")
         if not os.path.exists("/.dockerenv"):
+            print("Creating SSH key pair...")
             run_in_bash(f'ssh-keygen -t rsa -N "" -f ../{args.cloud}-deployment/{ssh_key_name}')
         create_tf_vars()
         create_backend_config()
