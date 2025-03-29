@@ -38,6 +38,14 @@ parser.add_argument("--tf-state-bucket", type=str, help="s3 bucket name/blob sto
 parser.add_argument("--gcp-project-id", type=str, help="The project id to use for Google cloud.")
 args = parser.parse_args()
 
+def is_cidr_valid(cidr):
+    net_bits = int(cidr.split('/')[1])
+    print(net_bits)
+    if net_bits > 27:
+        print("CIDR block is too small. Please use a CIDR block with a netmask of atleast /27.")
+        return False
+    return True
+
 def run_in_bash(cmd):
     process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, env=os.environ.copy())
     for line in iter(process.stdout.readline, ''):
@@ -189,6 +197,9 @@ def prepare_user_data():
 if __name__ == "__main__":
     if args.cloud not in supported_clouds:
         print("Unsupported cloud provider. Exiting...")
+        sys.exit(1)
+    if args.cloud == "aws" and not is_cidr_valid(args.vpc_cidr):
+        print("Invalid CIDR block. Exiting...")
         sys.exit(1)
     if os.path.exists("/.dockerenv"):
         print("Running inside docker.")
