@@ -1,5 +1,5 @@
 locals {
-  subnet_cidr       = cidrsubnet("${var.vpc_cidr}", 8, 1)
+  subnet_cidr       = cidrsubnet("${var.vpc_cidr}", 1, 0)
   availability_zone = data.aws_availability_zones.available.names[0]
 }
 
