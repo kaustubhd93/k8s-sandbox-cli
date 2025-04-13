@@ -27,3 +27,4 @@ terraform.rc
 # ignore backend config
 aws-deployment/backend.conf
 gcp-deployment/backend.tf
+azure-deployment/backend.tf

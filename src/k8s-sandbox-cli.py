@@ -17,7 +17,7 @@ from configparser import ConfigParser
 from ruamel.yaml import YAML
 
 ssh_key_name = "k8s-sandbox"
-supported_clouds = ["aws", "gcp"]
+supported_clouds = ["aws", "gcp", "azure"]
 user_data_wait_time = 240
 if os.path.exists("/.dockerenv"):
     pub_key_file_path = f"/opt/keys/{ssh_key_name}.pub"
@@ -28,7 +28,7 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--action", type=str, choices=["create", "destroy"], help="The action to perform: create or destroy")
-parser.add_argument("--cloud", type=str, choices=["aws", "gcp"], help="The cloud provider to use")
+parser.add_argument("--cloud", type=str, choices=["aws", "gcp", "azure"], help="The cloud provider to use")
 parser.add_argument("--vpc-cidr", type=str, default="10.10.0.0/16", help="New VPC CIDR to use")
 parser.add_argument("--region", type=str, default="us-east-1", help="The cloud provider region to use")
 parser.add_argument("--kube-pods-cidr", type=str, default="192.168.0.0/16", help="The CIDR to use for k8s pods")
@@ -36,6 +36,10 @@ parser.add_argument("--kube-service-cidr", type=str, default="10.96.0.0/16", hel
 parser.add_argument("--cloud-credentials", type=str, default= '{"creds":"none"}', help="Cloud provider credentials in json format")
 parser.add_argument("--tf-state-bucket", type=str, help="s3 bucket name/blob storage name/storage bucket name")
 parser.add_argument("--gcp-project-id", type=str, help="The project id to use for Google cloud.")
+parser.add_argument("--az-storage-account-rg", type=str, help="")
+parser.add_argument("--az-storage-account-name", type=str, help="")
+parser.add_argument("--az-storage-container-name", type=str, help="")
+
 args = parser.parse_args()
 
 def is_cidr_valid(cidr):
@@ -89,6 +93,14 @@ def create_tf_vars():
             "vm_instance_name": "k8s-sandbox",
             "instance_storage": 20
         }
+    elif args.cloud == "azure":
+        tf_vars = {
+            "vpc_cidr": args.vpc_cidr,
+            "location": args.region,
+            "ssh_key_file_path": pub_key_file_path,
+            "vm_size": "Standard_B2s",
+            "source_ip_cidr": "0.0.0.0/0"
+        }
     else:
         return None
     file_data = json.dumps(tf_vars)
@@ -98,6 +110,7 @@ def create_tf_vars():
 
 def create_backend_config():
     print("Generating backend config file...")
+    backend_config_file = f"../{args.cloud}-deployment/backend.tf"
     if args.cloud == "aws":
         backend_config = f'''
     bucket = "{args.tf_state_bucket}"
@@ -116,6 +129,17 @@ def create_backend_config():
     }}
     '''
         backend_config_file = f"../{args.cloud}-deployment/backend.tf"
+    elif args.cloud == "azure":
+        backend_config = f'''
+    terraform {{
+        backend "azurerm" {{
+            resource_group_name  = "{args.az_storage_account_rg}"
+            storage_account_name = "{args.az_storage_account_name}"
+            container_name       = "{args.az_storage_container_name}"
+            key                  = "terraform.tfstate"
+        }}
+    }}
+    '''
     with open (backend_config_file, "w") as file:
             file.write(backend_config)
     return None
@@ -146,7 +170,7 @@ def create_credentials_file(cloud, credentials):
 def tf_create():
     if args.cloud == "aws":
         run_in_bash("terraform init -backend-config=backend.conf")
-    elif args.cloud == "gcp":
+    elif args.cloud == "gcp" or args.cloud == "azure":
         run_in_bash("terraform init")
     else:
         return None
@@ -233,7 +257,7 @@ if __name__ == "__main__":
         if os.path.exists("/.dockerenv"):
             if args.cloud == "aws":
                 run_in_bash("terraform init -backend-config=backend.conf")
-            elif args.cloud == "gcp":
+            elif args.cloud == "gcp" or ags.cloud == "azure":
                 run_in_bash("terraform init")
         run_in_bash("terraform destroy -auto-approve")
         if not os.path.exists("/.dockerenv"):

@@ -64,7 +64,6 @@ resource "azurerm_linux_virtual_machine" "k8s-sandbox" {
   name                = "k8s-sandbox-vm"
   resource_group_name = azurerm_resource_group.k8s-sandbox.name
   location            = azurerm_resource_group.k8s-sandbox.location
-  #size                = "Standard_B2s"
   size                = var.vm_size
   admin_username      = "ubuntu"
   network_interface_ids = [
